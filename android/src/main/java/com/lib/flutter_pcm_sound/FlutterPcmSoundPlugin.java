@@ -90,6 +90,21 @@ public class FlutterPcmSoundPlugin implements
                 case "setup": {
                     int sampleRate = call.argument("sample_rate");
                     mNumChannels = call.argument("num_channels");
+                    String androidAudioUsage = call.argument("android_audio_usage");
+
+                    // Resolve audio attributes from the requested usage.
+                    // voiceCommunication enables hardware AEC so the microphone does not
+                    // capture speaker output during bidirectional (bidi) streaming.
+                    boolean isVoice = "voiceCommunication".equals(androidAudioUsage);
+                    int audioUsage = isVoice
+                        ? AudioAttributes.USAGE_VOICE_COMMUNICATION
+                        : AudioAttributes.USAGE_MEDIA;
+                    int contentType = isVoice
+                        ? AudioAttributes.CONTENT_TYPE_SPEECH
+                        : AudioAttributes.CONTENT_TYPE_MUSIC;
+                    int legacyStreamType = isVoice
+                        ? AudioManager.STREAM_VOICE_CALL
+                        : AudioManager.STREAM_MUSIC;
 
                     // Cleanup existing resources if any
                     if (mAudioTrack != null) {
@@ -111,8 +126,8 @@ public class FlutterPcmSoundPlugin implements
                     if (Build.VERSION.SDK_INT >= 23) { // Android 6 (Marshmallow) and above
                         mAudioTrack = new AudioTrack.Builder()
                             .setAudioAttributes(new AudioAttributes.Builder()
-                                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                    .setUsage(audioUsage)
+                                    .setContentType(contentType)
                                     .build())
                             .setAudioFormat(new AudioFormat.Builder()
                                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
@@ -124,7 +139,7 @@ public class FlutterPcmSoundPlugin implements
                             .build();
                     } else {
                         mAudioTrack = new AudioTrack(
-                            AudioManager.STREAM_MUSIC,
+                            legacyStreamType,
                             sampleRate,
                             channelConfig,
                             AudioFormat.ENCODING_PCM_16BIT,

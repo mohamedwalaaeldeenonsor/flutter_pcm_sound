@@ -18,6 +18,17 @@ enum IosAudioCategory {
   playAndRecord //
 }
 
+// Android Documentation: https://developer.android.com/reference/android/media/AudioAttributes
+enum AndroidAudioUsage {
+  /// Default. Music, podcasts, videos. Uses USAGE_MEDIA / STREAM_MUSIC.
+  media,
+
+  /// VoIP and voice assistants. Uses USAGE_VOICE_COMMUNICATION / STREAM_VOICE_CALL.
+  /// Activates hardware Acoustic Echo Cancellation (AEC) so the microphone
+  /// does not capture speaker output during bidirectional streaming.
+  voiceCommunication,
+}
+
 class FlutterPcmSound {
   static const MethodChannel _channel = const MethodChannel('flutter_pcm_sound/methods');
 
@@ -34,19 +45,22 @@ class FlutterPcmSound {
   }
 
   /// setup audio
-  /// 'avAudioCategory' is for iOS only,
-  /// enabled by default on other platforms
+  /// [iosAudioCategory] is iOS only.
+  /// [androidAudioUsage] is Android only — use [AndroidAudioUsage.voiceCommunication]
+  /// for VoIP / voice-assistant apps to activate hardware AEC.
   static Future<void> setup(
       {required int sampleRate,
       required int channelCount,
       IosAudioCategory iosAudioCategory = IosAudioCategory.playback,
       bool iosAllowBackgroundAudio = false,
+      AndroidAudioUsage androidAudioUsage = AndroidAudioUsage.media,
       }) async {
     return await _invokeMethod('setup', {
       'sample_rate': sampleRate,
       'num_channels': channelCount,
       'ios_audio_category': iosAudioCategory.name,
       'ios_allow_background_audio' : iosAllowBackgroundAudio,
+      'android_audio_usage': androidAudioUsage.name,
     });
   }
 
