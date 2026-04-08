@@ -20,13 +20,40 @@ enum IosAudioCategory {
 
 // Android Documentation: https://developer.android.com/reference/android/media/AudioAttributes
 enum AndroidAudioUsage {
-  /// Default. Music, podcasts, videos. Uses USAGE_MEDIA / STREAM_MUSIC.
-  media,
+  unknown,                       // USAGE_UNKNOWN
+  media,                         // USAGE_MEDIA (default)
+  voiceCommunication,            // USAGE_VOICE_COMMUNICATION
+  voiceCommunicationSignalling,  // USAGE_VOICE_COMMUNICATION_SIGNALLING
+  alarm,                         // USAGE_ALARM
+  notification,                  // USAGE_NOTIFICATION
+  notificationRingtone,          // USAGE_NOTIFICATION_RINGTONE
+  notificationEvent,             // USAGE_NOTIFICATION_EVENT
+  assistanceAccessibility,       // USAGE_ASSISTANCE_ACCESSIBILITY
+  assistanceNavigationGuidance,  // USAGE_ASSISTANCE_NAVIGATION_GUIDANCE
+  assistanceSonification,        // USAGE_ASSISTANCE_SONIFICATION
+  game,                          // USAGE_GAME
+  assistant,                     // USAGE_ASSISTANT
+}
 
-  /// VoIP and voice assistants. Uses USAGE_VOICE_COMMUNICATION / STREAM_VOICE_CALL.
-  /// Activates hardware Acoustic Echo Cancellation (AEC) so the microphone
-  /// does not capture speaker output during bidirectional streaming.
-  voiceCommunication,
+// Android Documentation: https://developer.android.com/reference/android/media/AudioAttributes
+enum AndroidAudioContentType {
+  unknown,      // CONTENT_TYPE_UNKNOWN
+  speech,       // CONTENT_TYPE_SPEECH
+  music,        // CONTENT_TYPE_MUSIC (default)
+  movie,        // CONTENT_TYPE_MOVIE
+  sonification, // CONTENT_TYPE_SONIFICATION
+}
+
+// Android Documentation: https://developer.android.com/reference/android/media/AudioManager
+enum AndroidLegacyStreamType {
+  voiceCall,    // STREAM_VOICE_CALL
+  system,       // STREAM_SYSTEM
+  ring,         // STREAM_RING
+  music,        // STREAM_MUSIC (default)
+  alarm,        // STREAM_ALARM
+  notification, // STREAM_NOTIFICATION
+  dtmf,         // STREAM_DTMF
+  accessibility, // STREAM_ACCESSIBILITY (API 26+)
 }
 
 class FlutterPcmSound {
@@ -46,21 +73,26 @@ class FlutterPcmSound {
 
   /// setup audio
   /// [iosAudioCategory] is iOS only.
-  /// [androidAudioUsage] is Android only — use [AndroidAudioUsage.voiceCommunication]
-  /// for VoIP / voice-assistant apps to activate hardware AEC.
+  /// [androidAudioUsage] is Android only. See [AndroidAudioUsage].
+  /// [androidAudioContentType] is Android only. See [AndroidAudioContentType].
+  /// [androidLegacyStreamType] is Android only, used on API < 23. See [AndroidLegacyStreamType].
   static Future<void> setup(
       {required int sampleRate,
       required int channelCount,
       IosAudioCategory iosAudioCategory = IosAudioCategory.playback,
       bool iosAllowBackgroundAudio = false,
       AndroidAudioUsage androidAudioUsage = AndroidAudioUsage.media,
+      AndroidAudioContentType androidAudioContentType = AndroidAudioContentType.music,
+      AndroidLegacyStreamType androidLegacyStreamType = AndroidLegacyStreamType.music,
       }) async {
     return await _invokeMethod('setup', {
       'sample_rate': sampleRate,
       'num_channels': channelCount,
       'ios_audio_category': iosAudioCategory.name,
-      'ios_allow_background_audio' : iosAllowBackgroundAudio,
+      'ios_allow_background_audio': iosAllowBackgroundAudio,
       'android_audio_usage': androidAudioUsage.name,
+      'android_audio_content_type': androidAudioContentType.name,
+      'android_legacy_stream_type': androidLegacyStreamType.name,
     });
   }
 
