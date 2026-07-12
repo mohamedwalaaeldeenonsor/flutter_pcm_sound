@@ -6,3 +6,6 @@ example/*
 !example/lib/
 !example/lib/main.dart
 !example/pubspec.yaml
+
+# FVM Version Cache
+.fvm/
