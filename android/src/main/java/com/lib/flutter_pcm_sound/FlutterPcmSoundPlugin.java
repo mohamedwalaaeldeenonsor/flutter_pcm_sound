@@ -171,15 +171,26 @@ public class FlutterPcmSoundPlugin implements
                     byte[] buffer = call.argument("buffer");
 
                     // Split for better performance
-                    List<ByteBuffer> chunks = split(buffer, MAX_FRAMES_PER_BUFFER);
-
-                    // Push samples
                     synchronized (mSamples) {
-                        for (ByteBuffer chunk : chunks) {
-                            mSamples.add(chunk);
-                        }
-                        mTotalFeeds += 1;
-                    }
+                        int max = 0;
+
+for (int i = 0; i + 1 < buffer.length; i += 2) {
+    short sample = (short) (
+        (buffer[i] & 0xff) |
+        (buffer[i + 1] << 8)
+    );
+
+    max = Math.max(max, Math.abs(sample));
+}
+
+android.util.Log.d(
+    "PCM",
+    "Feed: bytes=" + buffer.length +
+    " maxAmplitude=" + max
+);
+    mSamples.add(ByteBuffer.wrap(buffer));
+    mTotalFeeds += 1;
+}
 
                     result.success(true);
                     break;
@@ -250,6 +261,13 @@ public class FlutterPcmSoundPlugin implements
 
         mAudioTrack.play();
 
+android.util.Log.d(
+    "PCM",
+    "AudioTrack state=" + mAudioTrack.getState()
+        + " playState=" + mAudioTrack.getPlayState()
+        + " bufferSize=" + mMinBufferSize
+);
+
         while (!mShouldCleanup) {
             ByteBuffer data = null;
             try {
@@ -261,7 +279,26 @@ public class FlutterPcmSoundPlugin implements
             }
 
             // write
-            mAudioTrack.write(data, data.remaining(), AudioTrack.WRITE_BLOCKING);
+            int requested = data.remaining();
+
+int written = mAudioTrack.write(
+    data,
+    requested,
+    AudioTrack.WRITE_BLOCKING
+);
+
+android.util.Log.d(
+    "PCM",
+    "Requested=" + requested +
+    " Written=" + written
+);
+
+if (written < 0) {
+    android.util.Log.e(
+        "PCM",
+        "AudioTrack.write() failed with error " + written
+    );
+}
 
             long remainingFrames;
             long totalFeeds;

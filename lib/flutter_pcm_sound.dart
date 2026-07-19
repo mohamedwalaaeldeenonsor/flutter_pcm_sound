@@ -20,44 +20,45 @@ enum IosAudioCategory {
 
 // Android Documentation: https://developer.android.com/reference/android/media/AudioAttributes
 enum AndroidAudioUsage {
-  unknown,                       // USAGE_UNKNOWN
-  media,                         // USAGE_MEDIA (default)
-  voiceCommunication,            // USAGE_VOICE_COMMUNICATION
-  voiceCommunicationSignalling,  // USAGE_VOICE_COMMUNICATION_SIGNALLING
-  alarm,                         // USAGE_ALARM
-  notification,                  // USAGE_NOTIFICATION
-  notificationRingtone,          // USAGE_NOTIFICATION_RINGTONE
-  notificationEvent,             // USAGE_NOTIFICATION_EVENT
-  assistanceAccessibility,       // USAGE_ASSISTANCE_ACCESSIBILITY
-  assistanceNavigationGuidance,  // USAGE_ASSISTANCE_NAVIGATION_GUIDANCE
-  assistanceSonification,        // USAGE_ASSISTANCE_SONIFICATION
-  game,                          // USAGE_GAME
-  assistant,                     // USAGE_ASSISTANT
+  unknown, // USAGE_UNKNOWN
+  media, // USAGE_MEDIA (default)
+  voiceCommunication, // USAGE_VOICE_COMMUNICATION
+  voiceCommunicationSignalling, // USAGE_VOICE_COMMUNICATION_SIGNALLING
+  alarm, // USAGE_ALARM
+  notification, // USAGE_NOTIFICATION
+  notificationRingtone, // USAGE_NOTIFICATION_RINGTONE
+  notificationEvent, // USAGE_NOTIFICATION_EVENT
+  assistanceAccessibility, // USAGE_ASSISTANCE_ACCESSIBILITY
+  assistanceNavigationGuidance, // USAGE_ASSISTANCE_NAVIGATION_GUIDANCE
+  assistanceSonification, // USAGE_ASSISTANCE_SONIFICATION
+  game, // USAGE_GAME
+  assistant, // USAGE_ASSISTANT
 }
 
 // Android Documentation: https://developer.android.com/reference/android/media/AudioAttributes
 enum AndroidAudioContentType {
-  unknown,      // CONTENT_TYPE_UNKNOWN
-  speech,       // CONTENT_TYPE_SPEECH
-  music,        // CONTENT_TYPE_MUSIC (default)
-  movie,        // CONTENT_TYPE_MOVIE
+  unknown, // CONTENT_TYPE_UNKNOWN
+  speech, // CONTENT_TYPE_SPEECH
+  music, // CONTENT_TYPE_MUSIC (default)
+  movie, // CONTENT_TYPE_MOVIE
   sonification, // CONTENT_TYPE_SONIFICATION
 }
 
 // Android Documentation: https://developer.android.com/reference/android/media/AudioManager
 enum AndroidLegacyStreamType {
-  voiceCall,    // STREAM_VOICE_CALL
-  system,       // STREAM_SYSTEM
-  ring,         // STREAM_RING
-  music,        // STREAM_MUSIC (default)
-  alarm,        // STREAM_ALARM
+  voiceCall, // STREAM_VOICE_CALL
+  system, // STREAM_SYSTEM
+  ring, // STREAM_RING
+  music, // STREAM_MUSIC (default)
+  alarm, // STREAM_ALARM
   notification, // STREAM_NOTIFICATION
-  dtmf,         // STREAM_DTMF
+  dtmf, // STREAM_DTMF
   accessibility, // STREAM_ACCESSIBILITY (API 26+)
 }
 
 class FlutterPcmSound {
-  static const MethodChannel _channel = const MethodChannel('flutter_pcm_sound/methods');
+  static const MethodChannel _channel =
+      const MethodChannel('flutter_pcm_sound/methods');
 
   static Function(int)? onFeedSamplesCallback;
 
@@ -76,15 +77,17 @@ class FlutterPcmSound {
   /// [androidAudioUsage] is Android only. See [AndroidAudioUsage].
   /// [androidAudioContentType] is Android only. See [AndroidAudioContentType].
   /// [androidLegacyStreamType] is Android only, used on API < 23. See [AndroidLegacyStreamType].
-  static Future<void> setup(
-      {required int sampleRate,
-      required int channelCount,
-      IosAudioCategory iosAudioCategory = IosAudioCategory.playback,
-      bool iosAllowBackgroundAudio = false,
-      AndroidAudioUsage androidAudioUsage = AndroidAudioUsage.media,
-      AndroidAudioContentType androidAudioContentType = AndroidAudioContentType.music,
-      AndroidLegacyStreamType androidLegacyStreamType = AndroidLegacyStreamType.music,
-      }) async {
+  static Future<void> setup({
+    required int sampleRate,
+    required int channelCount,
+    IosAudioCategory iosAudioCategory = IosAudioCategory.playback,
+    bool iosAllowBackgroundAudio = false,
+    AndroidAudioUsage androidAudioUsage = AndroidAudioUsage.media,
+    AndroidAudioContentType androidAudioContentType =
+        AndroidAudioContentType.music,
+    AndroidLegacyStreamType androidLegacyStreamType =
+        AndroidLegacyStreamType.music,
+  }) async {
     return await _invokeMethod('setup', {
       'sample_rate': sampleRate,
       'num_channels': channelCount,
@@ -99,14 +102,16 @@ class FlutterPcmSound {
   /// queue 16-bit samples (little endian)
   static Future<void> feed(PcmArrayInt16 buffer) async {
     if (_needsStart && buffer.count != 0) _needsStart = false;
-    return await _invokeMethod('feed', {'buffer': buffer.bytes.buffer.asUint8List()});
+    return await _invokeMethod(
+        'feed', {'buffer': buffer.bytes.buffer.asUint8List()});
   }
 
   /// set the threshold at which we call the
   /// feed callback. i.e. if we have less than X
   /// queued frames, the feed callback will be invoked
   static Future<void> setFeedThreshold(int threshold) async {
-    return await _invokeMethod('setFeedThreshold', {'feed_threshold': threshold});
+    return await _invokeMethod(
+        'setFeedThreshold', {'feed_threshold': threshold});
   }
 
   /// Your feed callback is invoked _once_ for each of these events:
@@ -142,7 +147,8 @@ class FlutterPcmSound {
       if (method == 'feed') {
         Uint8List data = arguments['buffer'];
         if (data.lengthInBytes > 6) {
-          args = '(${data.lengthInBytes ~/ 2} samples) ${data.sublist(0, 6)} ...';
+          args =
+              '(${data.lengthInBytes ~/ 2} samples) ${data.sublist(0, 6)} ...';
         } else {
           args = '(${data.lengthInBytes ~/ 2} samples) $data';
         }
@@ -190,21 +196,19 @@ class PcmArrayInt16 {
 
   factory PcmArrayInt16.fromList(List<int> list) {
     var byteData = ByteData(list.length * 2);
-    for (int i = 0; i < list.length; i++) {
-      byteData.setInt16(i * 2, list[i], Endian.host);
-    }
+    for (int i = 0; i < list.length; i++) {}
     return PcmArrayInt16(bytes: byteData);
   }
 
   int get count => bytes.lengthInBytes ~/ 2;
 
   operator [](int idx) {
-    int vv = bytes.getInt16(idx * 2, Endian.host);
+    int vv = bytes.getInt16(idx * 2, Endian.little);
     return vv;
   }
 
   operator []=(int idx, int value) {
-    return bytes.setInt16(idx * 2, value, Endian.host);
+    return bytes.setInt16(idx * 2, value, Endian.little);
   }
 }
 
@@ -218,7 +222,16 @@ class MajorScale {
 
   // C Major Scale (Just Intonation)
   List<double> get scale {
-    List<double> c = [261.63, 294.33, 327.03, 348.83, 392.44, 436.05, 490.55, 523.25];
+    List<double> c = [
+      261.63,
+      294.33,
+      327.03,
+      348.83,
+      392.44,
+      436.05,
+      490.55,
+      523.25
+    ];
     return [c[0]] + c + c.reversed.toList().sublist(0, c.length - 1);
   }
 
@@ -251,14 +264,20 @@ class MajorScale {
   }
 
   // generate a sine wave
-  List<int> cosineWave({int periods = 1, int sampleRate = 44100, double freq = 440, double volume = 0.5}) {
+  List<int> cosineWave(
+      {int periods = 1,
+      int sampleRate = 44100,
+      double freq = 440,
+      double volume = 0.5}) {
     final period = 1.0 / freq;
     final nFramesPerPeriod = (period * sampleRate).toInt();
     final totalFrames = nFramesPerPeriod * periods;
     final step = math.pi * 2 / nFramesPerPeriod;
     List<int> data = List.filled(totalFrames, 0);
     for (int i = 0; i < totalFrames; i++) {
-      data[i] = (math.cos(step * (i % nFramesPerPeriod)) * volume * 32768).toInt() - 16384;
+      data[i] =
+          (math.cos(step * (i % nFramesPerPeriod)) * volume * 32768).toInt() -
+              16384;
     }
     return data;
   }
@@ -272,7 +291,11 @@ class MajorScale {
     List<int> frames = [];
     for (int i = 0; i < periods; i++) {
       _periodCount %= _periodsForScale;
-      frames += cosineWave(periods: 1, sampleRate: sampleRate, freq: scale[noteIdx], volume: volume);
+      frames += cosineWave(
+          periods: 1,
+          sampleRate: sampleRate,
+          freq: scale[noteIdx],
+          volume: volume);
       _periodCount++;
     }
     return frames;
