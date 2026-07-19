@@ -26,6 +26,12 @@ import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
+import android.content.Context;
+import android.media.AudioFocusRequest;
+
+// Add these fields
+
+
 /**
  * FlutterPcmSoundPlugin implements a "one pedal" PCM sound playback mechanism.
  * Playback starts automatically when samples are fed and stops when no more samples are available.
@@ -51,6 +57,18 @@ public class FlutterPcmSoundPlugin implements
     private long mTotalFeeds = 0;
     private long mLastLowBufferFeed = 0;
     private long mLastZeroFeed = 0;
+
+    private AudioManager mAudioManager;
+private AudioFocusRequest mFocusRequest;
+
+@Override
+public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+    BinaryMessenger messenger = binding.getBinaryMessenger();
+    mMethodChannel = new MethodChannel(messenger, CHANNEL_NAME);
+    mMethodChannel.setMethodCallHandler(this);
+    mAudioManager = (AudioManager) binding.getApplicationContext()
+        .getSystemService(Context.AUDIO_SERVICE);
+}
 
     // Thread-safe queue for storing audio samples
     private final LinkedBlockingQueue<ByteBuffer> mSamples = new LinkedBlockingQueue<>();
