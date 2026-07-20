@@ -283,7 +283,6 @@ public class FlutterPcmSoundPlugin implements
         }
 
         mHasAudioFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
-        android.util.Log.d("PCM", "requestAudioFocus result=" + result + " hasFocus=" + mHasAudioFocus);
     }
 
     /**
@@ -322,12 +321,7 @@ public class FlutterPcmSoundPlugin implements
 
         mAudioTrack.play();
 
-        android.util.Log.d(
-            "PCM",
-            "AudioTrack state=" + mAudioTrack.getState()
-                + " playState=" + mAudioTrack.getPlayState()
-                + " bufferSize=" + mMinBufferSize
-        );
+        
 
         while (!mShouldCleanup) {
             ByteBuffer data = null;
@@ -351,17 +345,9 @@ public class FlutterPcmSoundPlugin implements
                 AudioTrack.WRITE_BLOCKING
             );
 
-            android.util.Log.d(
-                "PCM",
-                "Requested=" + requested + " Written=" + written
-            );
+         
 
-            if (written < 0) {
-                android.util.Log.e(
-                    "PCM",
-                    "AudioTrack.write() failed with error " + written
-                );
-            }
+           
 
             long remainingFrames;
             long totalFeeds;
