@@ -196,7 +196,9 @@ class PcmArrayInt16 {
 
   factory PcmArrayInt16.fromList(List<int> list) {
     var byteData = ByteData(list.length * 2);
-    for (int i = 0; i < list.length; i++) {}
+    for (int i = 0; i < list.length; i++) {
+      byteData.setInt16(i * 2, list[i], Endian.little);
+    }
     return PcmArrayInt16(bytes: byteData);
   }
 

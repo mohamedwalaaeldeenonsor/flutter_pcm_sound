@@ -53,22 +53,16 @@ public class FlutterPcmSoundPlugin implements
     private int mMinBufferSize;
     private boolean mDidSetup = false;
 
+    private AudioManager mAudioManager;
+private AudioFocusRequest mFocusRequest;
+
     private long mFeedThreshold = 8000;
     private long mTotalFeeds = 0;
     private long mLastLowBufferFeed = 0;
     private long mLastZeroFeed = 0;
 
-    private AudioManager mAudioManager;
-private AudioFocusRequest mFocusRequest;
 
-@Override
-public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-    BinaryMessenger messenger = binding.getBinaryMessenger();
-    mMethodChannel = new MethodChannel(messenger, CHANNEL_NAME);
-    mMethodChannel.setMethodCallHandler(this);
-    mAudioManager = (AudioManager) binding.getApplicationContext()
-        .getSystemService(Context.AUDIO_SERVICE);
-}
+
 
     // Thread-safe queue for storing audio samples
     private final LinkedBlockingQueue<ByteBuffer> mSamples = new LinkedBlockingQueue<>();
@@ -85,9 +79,12 @@ public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-        BinaryMessenger messenger = binding.getBinaryMessenger();
-        mMethodChannel = new MethodChannel(messenger, CHANNEL_NAME);
-        mMethodChannel.setMethodCallHandler(this);
+          BinaryMessenger messenger = binding.getBinaryMessenger();
+    mMethodChannel = new MethodChannel(messenger, CHANNEL_NAME);
+    mMethodChannel.setMethodCallHandler(this);
+    mAudioManager = (AudioManager) binding.getApplicationContext()
+        .getSystemService(Context.AUDIO_SERVICE);
+
     }
 
     @Override
