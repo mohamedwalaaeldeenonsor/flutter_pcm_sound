@@ -155,7 +155,6 @@ class FlutterPcmSound {
       } else if (arguments != null) {
         args = arguments.toString();
       }
-      print("[PCM] invoke: $method $args");
     }
     return await _channel.invokeMethod(method, arguments);
   }
@@ -164,7 +163,6 @@ class FlutterPcmSound {
     if (_logLevel.index >= LogLevel.standard.index) {
       String func = '[[ ${call.method} ]]';
       String args = call.arguments.toString();
-      print("[PCM] $func $args");
     }
     switch (call.method) {
       case 'OnFeedSamples':
@@ -175,7 +173,6 @@ class FlutterPcmSound {
         }
         break;
       default:
-        print('Method not implemented');
     }
   }
 }

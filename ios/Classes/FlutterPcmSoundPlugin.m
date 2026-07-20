@@ -263,16 +263,11 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
                                             &isRunning,
                                             &size);
         if (status != noErr) {
-            NSLog(@"AudioUnitGetProperty IsRunning failed. OSStatus: %@", @(status));
             return;
         }
         if (isRunning) {
             status = AudioOutputUnitStop(_mAudioUnit);
-            if (status != noErr) {
-                NSLog(@"AudioOutputUnitStop failed. OSStatus: %@", @(status));
-            } else {
-                NSLog(@"AudioUnit stopped because no more samples");
-            }
+           
         }
     }
 }
