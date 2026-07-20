@@ -29,9 +29,6 @@ import io.flutter.plugin.common.MethodChannel;
 import android.content.Context;
 import android.media.AudioFocusRequest;
 
-// Add these fields
-
-
 /**
  * FlutterPcmSoundPlugin implements a "one pedal" PCM sound playback mechanism.
  * Playback starts automatically when samples are fed and stops when no more samples are available.
@@ -54,15 +51,14 @@ public class FlutterPcmSoundPlugin implements
     private boolean mDidSetup = false;
 
     private AudioManager mAudioManager;
-private AudioFocusRequest mFocusRequest;
+    private AudioFocusRequest mFocusRequest;
+    private AudioManager.OnAudioFocusChangeListener mFocusChangeListener;
+    private volatile boolean mHasAudioFocus = false;
 
     private long mFeedThreshold = 8000;
     private long mTotalFeeds = 0;
     private long mLastLowBufferFeed = 0;
     private long mLastZeroFeed = 0;
-
-
-
 
     // Thread-safe queue for storing audio samples
     private final LinkedBlockingQueue<ByteBuffer> mSamples = new LinkedBlockingQueue<>();
@@ -79,12 +75,11 @@ private AudioFocusRequest mFocusRequest;
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-          BinaryMessenger messenger = binding.getBinaryMessenger();
-    mMethodChannel = new MethodChannel(messenger, CHANNEL_NAME);
-    mMethodChannel.setMethodCallHandler(this);
-    mAudioManager = (AudioManager) binding.getApplicationContext()
-        .getSystemService(Context.AUDIO_SERVICE);
-
+        BinaryMessenger messenger = binding.getBinaryMessenger();
+        mMethodChannel = new MethodChannel(messenger, CHANNEL_NAME);
+        mMethodChannel.setMethodCallHandler(this);
+        mAudioManager = (AudioManager) binding.getApplicationContext()
+            .getSystemService(Context.AUDIO_SERVICE);
     }
 
     @Override
@@ -130,7 +125,10 @@ private AudioFocusRequest mFocusRequest;
                         return;
                     }
 
-                    if (Build.VERSION.SDK_INT >= 23) { // Android 6 (Marshmallow) and above
+                    // Use a modest buffer to keep latency low while avoiding underruns.
+                    int bufferSize = Math.max(mMinBufferSize, sampleRate * mNumChannels * 2 / 5);
+
+                    if (Build.VERSION.SDK_INT >= 23) {
                         mAudioTrack = new AudioTrack.Builder()
                             .setAudioAttributes(new AudioAttributes.Builder()
                                     .setUsage(audioUsage)
@@ -141,7 +139,7 @@ private AudioFocusRequest mFocusRequest;
                                     .setSampleRate(sampleRate)
                                     .setChannelMask(channelConfig)
                                     .build())
-                            .setBufferSizeInBytes(mMinBufferSize)
+                            .setBufferSizeInBytes(bufferSize)
                             .setTransferMode(AudioTrack.MODE_STREAM)
                             .build();
                     } else {
@@ -150,7 +148,7 @@ private AudioFocusRequest mFocusRequest;
                             sampleRate,
                             channelConfig,
                             AudioFormat.ENCODING_PCM_16BIT,
-                            mMinBufferSize,
+                            bufferSize,
                             AudioTrack.MODE_STREAM);
                     }
 
@@ -159,6 +157,11 @@ private AudioFocusRequest mFocusRequest;
                         mAudioTrack.release();
                         mAudioTrack = null;
                         return;
+                    }
+
+                    // Route voice communication audio to speaker instead of earpiece.
+                    if (audioUsage == AudioAttributes.USAGE_VOICE_COMMUNICATION && mAudioManager != null) {
+                        mAudioManager.setSpeakerphoneOn(true);
                     }
 
                     // reset
@@ -176,7 +179,6 @@ private AudioFocusRequest mFocusRequest;
                     break;
                 }
                 case "feed": {
-
                     // check setup (to match iOS behavior)
                     if (mDidSetup == false) {
                         result.error("Setup", "must call setup first", null);
@@ -184,28 +186,15 @@ private AudioFocusRequest mFocusRequest;
                     }
 
                     byte[] buffer = call.argument("buffer");
+                    if (buffer == null || buffer.length == 0) {
+                        result.success(true);
+                        return;
+                    }
 
-                    // Split for better performance
                     synchronized (mSamples) {
-                        int max = 0;
-
-for (int i = 0; i + 1 < buffer.length; i += 2) {
-    short sample = (short) (
-        (buffer[i] & 0xff) |
-        (buffer[i + 1] << 8)
-    );
-
-    max = Math.max(max, Math.abs(sample));
-}
-
-android.util.Log.d(
-    "PCM",
-    "Feed: bytes=" + buffer.length +
-    " maxAmplitude=" + max
-);
-    mSamples.add(ByteBuffer.wrap(buffer));
-    mTotalFeeds += 1;
-}
+                        mSamples.add(ByteBuffer.wrap(buffer));
+                        mTotalFeeds += 1;
+                    }
 
                     result.success(true);
                     break;
@@ -230,7 +219,6 @@ android.util.Log.d(
                     break;
             }
 
-
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -248,6 +236,7 @@ android.util.Log.d(
         // stop playback thread
         if (playbackThread != null) {
             mShouldCleanup = true;
+            mSamples.clear();
             playbackThread.interrupt();
             try {
                 playbackThread.join();
@@ -256,6 +245,63 @@ android.util.Log.d(
             }
             playbackThread = null;
             mDidSetup = false;
+        }
+        abandonAudioFocus();
+    }
+
+    /**
+     * Request audio focus so playback is not silent or ducked.
+     */
+    private void requestAudioFocus() {
+        if (mHasAudioFocus || mAudioManager == null) {
+            return;
+        }
+
+        int result;
+        if (Build.VERSION.SDK_INT >= 26) {
+            if (mFocusRequest == null) {
+                mFocusChangeListener = focusChange -> {
+                    mHasAudioFocus = (focusChange == AudioManager.AUDIOFOCUS_GAIN);
+                };
+                mFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build())
+                    .setOnAudioFocusChangeListener(mFocusChangeListener)
+                    .build();
+            }
+            result = mAudioManager.requestAudioFocus(mFocusRequest);
+        } else {
+            mFocusChangeListener = focusChange -> {
+                mHasAudioFocus = (focusChange == AudioManager.AUDIOFOCUS_GAIN);
+            };
+            result = mAudioManager.requestAudioFocus(
+                mFocusChangeListener,
+                AudioManager.STREAM_VOICE_CALL,
+                AudioManager.AUDIOFOCUS_GAIN);
+        }
+
+        mHasAudioFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED);
+        android.util.Log.d("PCM", "requestAudioFocus result=" + result + " hasFocus=" + mHasAudioFocus);
+    }
+
+    /**
+     * Abandon audio focus when playback stops.
+     */
+    private void abandonAudioFocus() {
+        if (mAudioManager == null) {
+            return;
+        }
+        mHasAudioFocus = false;
+        if (Build.VERSION.SDK_INT >= 26) {
+            if (mFocusRequest != null) {
+                mAudioManager.abandonAudioFocusRequest(mFocusRequest);
+            }
+        } else {
+            if (mFocusChangeListener != null) {
+                mAudioManager.abandonAudioFocus(mFocusChangeListener);
+            }
         }
     }
 
@@ -276,12 +322,12 @@ android.util.Log.d(
 
         mAudioTrack.play();
 
-android.util.Log.d(
-    "PCM",
-    "AudioTrack state=" + mAudioTrack.getState()
-        + " playState=" + mAudioTrack.getPlayState()
-        + " bufferSize=" + mMinBufferSize
-);
+        android.util.Log.d(
+            "PCM",
+            "AudioTrack state=" + mAudioTrack.getState()
+                + " playState=" + mAudioTrack.getPlayState()
+                + " bufferSize=" + mMinBufferSize
+        );
 
         while (!mShouldCleanup) {
             ByteBuffer data = null;
@@ -293,27 +339,29 @@ android.util.Log.d(
                 continue;
             }
 
+            if (mAudioTrack == null) {
+                continue;
+            }
+
             // write
             int requested = data.remaining();
+            int written = mAudioTrack.write(
+                data,
+                requested,
+                AudioTrack.WRITE_BLOCKING
+            );
 
-int written = mAudioTrack.write(
-    data,
-    requested,
-    AudioTrack.WRITE_BLOCKING
-);
+            android.util.Log.d(
+                "PCM",
+                "Requested=" + requested + " Written=" + written
+            );
 
-android.util.Log.d(
-    "PCM",
-    "Requested=" + requested +
-    " Written=" + written
-);
-
-if (written < 0) {
-    android.util.Log.e(
-        "PCM",
-        "AudioTrack.write() failed with error " + written
-    );
-}
+            if (written < 0) {
+                android.util.Log.e(
+                    "PCM",
+                    "AudioTrack.write() failed with error " + written
+                );
+            }
 
             long remainingFrames;
             long totalFeeds;
